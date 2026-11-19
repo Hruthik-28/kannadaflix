@@ -67,7 +67,12 @@ class Feed {
 
   async _range(skip, limit) {
     let loaded = 0;
+    const started = Date.now();
+    const budgetMs = this.cfg.catalog.requestBudgetMs;
     while (this.items.length < skip + limit && !this.exhausted && loaded < MAX_PAGES_PER_REQUEST) {
+      // Bound the time of one request (important on serverless): once there is something new to return and
+      // the budget is spent, answer with a shorter page. Stremio's next `skip` continues exactly from there.
+      if (this.items.length > skip && Date.now() - started > budgetMs) break;
       try {
         await this._loadNextPage();
         loaded += 1;

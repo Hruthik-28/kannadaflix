@@ -42,7 +42,7 @@ const parseSkip = (value) => {
 function createAddon(options = {}) {
   const cfg = options.config || defaultConfig;
   const tmdb = options.tmdb || new TmdbClient(cfg.tmdb);
-  const idMap = options.idMap || new IdMap(tmdb, { filePath: cfg.idMapPath });
+  const idMap = options.idMap || new IdMap(tmdb, { filePath: cfg.idMapPath, seedPath: cfg.idMapSeedPath });
   const service = new CatalogService({ tmdb, idMap, cfg });
   const { cache } = cfg;
 

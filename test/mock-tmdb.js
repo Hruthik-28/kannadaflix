@@ -40,7 +40,7 @@ function buildDataset() {
 function startMockTmdb() {
   const data = buildDataset();
   const all = [...data.kn, ...data.others];
-  const state = { hits: {}, failMode: null, failures: 0, leak: true, detailCalls: 0 };
+  const state = { discoverPages: [], hits: {}, failMode: null, failures: 0, leak: true, detailCalls: 0 };
 
   const byId = new Map(all.map((m) => [m.id, m]));
   const strip = ({ imdb, ...rest }) => rest;
@@ -71,6 +71,7 @@ function startMockTmdb() {
     const page = parseInt(q.get('page') || '1', 10);
 
     if (route === '/discover/movie') {
+      state.discoverPages.push(`${q.get('sort_by')}#${page}`);
       let list = (q.get('with_original_language') ? all.filter((m) => m.original_language === q.get('with_original_language')) : all).slice();
       const lte = q.get('primary_release_date.lte');
       if (lte) list = list.filter((m) => m.release_date && m.release_date <= lte);

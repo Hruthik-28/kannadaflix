@@ -16,24 +16,38 @@ const bool = (value, fallback) =>
 let apiKey = (process.env.TMDB_API_KEY || '').trim();
 if (apiKey === 'your_tmdb_api_key_here') apiKey = '';
 
+// Vercel sets VERCEL=1 in its runtime. Its project filesystem is read-only and not shared between
+// function instances, so there the TMDB->IMDb id cache lives in memory only (plus an optional,
+// read-only seed file that is shipped with the deployment).
+const onVercel = Boolean(process.env.VERCEL);
+
 const idMapRaw = process.env.ID_MAP_PATH;
-const idMapPath =
-  idMapRaw && idMapRaw.toLowerCase() === 'off'
+let idMapPath;
+if (idMapRaw && idMapRaw.toLowerCase() === 'off') idMapPath = null;
+else if (idMapRaw) idMapPath = path.resolve(idMapRaw);
+else idMapPath = onVercel ? null : path.resolve(path.join(__dirname, '..', 'data', 'id-map.json'));
+
+// Read-only starting point for the id cache (created with `npm run export-id-map`). Ignored if missing.
+const idMapSeedRaw = process.env.ID_MAP_SEED_PATH;
+const idMapSeedPath =
+  idMapSeedRaw && idMapSeedRaw.toLowerCase() === 'off'
     ? null
-    : path.resolve(idMapRaw || path.join(__dirname, '..', 'data', 'id-map.json'));
+    : path.resolve(idMapSeedRaw || path.join(__dirname, '..', 'seed', 'id-map.seed.json'));
 
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
 
 module.exports = {
   port: int(process.env.PORT, 7000),
+  onVercel,
   idMapPath,
+  idMapSeedPath,
   tmdb: {
     apiKey,
     language: process.env.TMDB_LANGUAGE || 'en-US',
     maxConcurrent: 8,
-    timeoutMs: 10000,
-    maxRetries: int(process.env.TMDB_MAX_RETRIES, 3),
+    timeoutMs: int(process.env.TMDB_TIMEOUT_MS, onVercel ? 8000 : 10000),
+    maxRetries: int(process.env.TMDB_MAX_RETRIES, onVercel ? 2 : 3),
     retryBaseMs: int(process.env.TMDB_RETRY_BASE_MS, 400),
   },
   catalog: {
@@ -43,6 +57,9 @@ module.exports = {
     ratingAsImdb: bool(process.env.SHOW_TMDB_RATING_AS_IMDB_RATING, false),
     maxSearchPages: 8, // TMDB search is not language-filtered, so we scan a few pages
     maxDiscoverPages: 500, // TMDB hard limit
+    // Once a request has at least one new item, stop loading further TMDB pages after this long.
+    // Pagination stays exact (the next `skip` simply continues); it just bounds time per request.
+    requestBudgetMs: int(process.env.REQUEST_BUDGET_MS, 8000),
   },
   cache: {
     listTtlMs: int(process.env.CACHE_TTL_MINUTES, 30) * MINUTE,

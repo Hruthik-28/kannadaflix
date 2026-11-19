@@ -1,7 +1,5 @@
 node_modules/
 .env
-.env.*
-!.env.example
-data/id-map.json
-npm-debug.log*
+data/
+*.log
 .DS_Store

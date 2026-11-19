@@ -6,12 +6,13 @@
   "private": true,
   "license": "MIT",
   "engines": {
-    "node": ">=18"
+    "node": "22.x"
   },
   "scripts": {
     "start": "node index.js",
     "dev": "node --watch index.js",
-    "test": "node --test test/addon.test.js"
+    "test": "node --test test/addon.test.js test/vercel.test.js",
+    "export-id-map": "node scripts/export-id-map.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

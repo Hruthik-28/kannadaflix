@@ -15,9 +15,10 @@ const isImdbId = (value) => typeof value === 'string' && IMDB_RE.test(value);
  *  - Lookups for the same id share one in-flight request.
  */
 class IdMap {
-  constructor(tmdb, { filePath = null, now = Date.now } = {}) {
+  constructor(tmdb, { filePath = null, seedPath = null, now = Date.now } = {}) {
     this.tmdb = tmdb;
-    this.filePath = filePath;
+    this.filePath = filePath; // read/write cache (local development)
+    this.seedPath = seedPath; // read-only starting data (shipped with a Vercel deployment)
     this.now = now;
     this.byTmdb = new Map(); // tmdbId(number) -> { imdb: 'tt..' | null, at }
     this.byImdb = new Map(); // 'tt..' -> tmdbId
@@ -29,24 +30,35 @@ class IdMap {
   }
 
   _load() {
-    if (!this.filePath) return;
+    // The seed is loaded first so a (newer) writable cache file wins. Neither failing is fatal.
+    this._loadFile(this.seedPath);
+    this._loadFile(this.filePath);
+  }
+
+  _loadFile(file) {
+    if (!file) return;
     try {
-      const data = JSON.parse(fs.readFileSync(this.filePath, 'utf8'));
+      const data = JSON.parse(fs.readFileSync(file, 'utf8'));
       for (const [tmdbId, row] of Object.entries(data.entries || {})) {
         const id = Number(tmdbId);
         if (!Number.isInteger(id) || !row) continue;
-        if (isImdbId(row.imdb)) this._remember(id, row.imdb, row.at || 0);
+        // Loading must not mark the map dirty: nothing new was learned.
+        if (isImdbId(row.imdb)) this._put(id, row.imdb, row.at || 0);
         else if (row.imdb === null) this.byTmdb.set(id, { imdb: null, at: row.at || 0 });
       }
     } catch (err) {
-      if (err.code !== 'ENOENT') console.warn(`[idmap] ignoring unreadable ${this.filePath}: ${err.message}`);
+      if (err.code !== 'ENOENT') console.warn(`[idmap] ignoring unreadable ${file}: ${err.message}`);
     }
   }
 
-  _remember(tmdbId, imdb, at = this.now()) {
+  _put(tmdbId, imdb, at) {
     this.byTmdb.set(tmdbId, { imdb, at });
     if (imdb) this.byImdb.set(imdb, tmdbId);
-    this._scheduleSave();
+  }
+
+  _remember(tmdbId, imdb, at = this.now()) {
+    this._put(tmdbId, imdb, at);
+    this._scheduleSave(); // no-op when there is no writable file (e.g. on Vercel)
   }
 
   _scheduleSave() {
