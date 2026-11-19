@@ -1,0 +1,20 @@
+{
+  "name": "kannadaflix",
+  "version": "1.0.0",
+  "description": "Stremio catalog addon for Kannada-language movies, powered by TMDB",
+  "main": "index.js",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "test": "node --test test/addon.test.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "stremio-addon-sdk": "^1.6.10"
+  }
+}
